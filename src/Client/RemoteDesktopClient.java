@@ -1,11 +1,9 @@
 package Client;
 
-import Include.ImageUtils;
 import Include.Keyboard;
 import Include.Mouse;
 import Include.Screen;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.InputEvent;
@@ -16,14 +14,14 @@ import java.io.*;
 import java.net.*;
 
 public class RemoteDesktopClient {
-    private Robot robot;
-    private JFrame frame;
-    private JLabel statusLabel;
+    private final Robot robot;
+    private final JFrame frame;
+    private final JLabel statusLabel;
     private Socket socket;
     private ServerSocket mouseServerSocket;
     private ServerSocket keyboardServerSocket;
     private ServerSocket screenServerSocket;
-
+    private String IPAdress;
     public RemoteDesktopClient() throws AWTException {
         // Khởi tạo UI
         frame = new JFrame("Client - Waiting for Connection");
@@ -45,7 +43,10 @@ public class RemoteDesktopClient {
 
     private void connectToServer() {
         try {
-            socket = new Socket("localhost", 1234); // Kết nối đến server
+            InetAddress localhost = InetAddress.getLocalHost();
+            IPAdress = localhost.getHostAddress();
+            System.out.println(IPAdress);
+            socket = new Socket(IPAdress, 1234); // Kết nối đến server
             statusLabel.setText("Connected to server!");
 
             // Mở các ServerSocket cho chuột, bàn phím và màn hình
@@ -76,7 +77,7 @@ public class RemoteDesktopClient {
             while (true) {
                 try {
                     Mouse mouseEvent = (Mouse) mouse.readObject();
-                    //handleMouseEvent(mouseEvent);
+                    handleMouseEvent(mouseEvent);
                     // Xử lý sự kiện chuột ở đây
                     System.out.println("Received mouse event: " + mouseEvent);
                 } catch (EOFException e) {
@@ -127,7 +128,7 @@ public class RemoteDesktopClient {
             while (true) {
                 try {
                     Keyboard keyEvent = (Keyboard) keyboard.readObject();
-                   // handleKeyEvent(keyEvent);
+                    handleKeyEvent(keyEvent);
                     System.out.println("Received key event: " + keyEvent);
                 } catch (EOFException e) {
                     // Kết thúc luồng khi socket đóng
