@@ -45,7 +45,7 @@ public class RemoteDesktopClient {
             try {
                 InetAddress localhost = InetAddress.getLocalHost();
                 System.out.println("Trying to connect to server  " );
-                socket = new Socket("192.165.2.2", 1234); // Kết nối đến server
+                socket = new Socket("192.168.2.2", 1234); // Kết nối đến server
                 statusLabel.setText("Connected to server!");
                 break; // Thoát khỏi vòng lặp nếu kết nối thành công
 
