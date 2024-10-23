@@ -1,5 +1,6 @@
 package Client;
 
+import Include.ImageUtils;
 import Include.Keyboard;
 import Include.Mouse;
 import Include.Screen;
@@ -75,7 +76,7 @@ public class RemoteDesktopClient {
             while (true) {
                 try {
                     Mouse mouseEvent = (Mouse) mouse.readObject();
-                    handleMouseEvent(mouseEvent);
+                    //handleMouseEvent(mouseEvent);
                     // Xử lý sự kiện chuột ở đây
                     System.out.println("Received mouse event: " + mouseEvent);
                 } catch (EOFException e) {
@@ -126,7 +127,7 @@ public class RemoteDesktopClient {
             while (true) {
                 try {
                     Keyboard keyEvent = (Keyboard) keyboard.readObject();
-                    handleKeyEvent(keyEvent);
+                   // handleKeyEvent(keyEvent);
                     System.out.println("Received key event: " + keyEvent);
                 } catch (EOFException e) {
                     // Kết thúc luồng khi socket đóng
@@ -162,29 +163,34 @@ public class RemoteDesktopClient {
     }
     public void sendScreenData(ObjectOutputStream screenOut) {
         try {
-            // Chụp ảnh màn hình
+            // Khởi tạo đối tượng Robot để chụp ảnh màn hình
             Robot robot = new Robot();
             Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-            BufferedImage screenImage = robot.createScreenCapture(screenRect);
 
-            // Chuyển đổi BufferedImage thành byte array
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            ImageIO.write(screenImage, "jpg", byteArrayOutputStream);
-            byte[] imageData = byteArrayOutputStream.toByteArray();
+            // Vòng lặp liên tục gửi ảnh màn hình
+            while (true) {
+                // Chụp ảnh màn hình
+                BufferedImage screenImage = robot.createScreenCapture(screenRect);
 
-            // Đóng gói dữ liệu màn hình vào đối tượng Screen
-            Screen screen = new Screen(screenRect.width, screenRect.height, screenImage);
+                // Tạo đối tượng Screen với dữ liệu màn hình
+                Screen screen = new Screen(screenRect.width, screenRect.height, screenImage);
 
-            // Gửi đối tượng Screen qua socket
-            screenOut.writeObject(screen);
-            screenOut.flush();
+                // Gửi đối tượng Screen qua socket
+                screenOut.writeObject(screen);
+                screenOut.flush();
 
-            System.out.println("Screen data sent successfully!");
+                System.out.println("Screen data sent successfully!");
+
+                // Thêm một khoảng thời gian chờ giữa các lần gửi để tránh quá tải
+                Thread.sleep(100); // Thay đổi giá trị này để điều chỉnh tần suất gửi
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+
     public static void main(String[] args) throws AWTException {
         new RemoteDesktopClient();
     }
