@@ -89,11 +89,11 @@ public class RemoteDesktopClient {
             while (true) {
                 try {
                     Mouse mouseEvent = (Mouse) mouse.readObject();
-                    double scaleX = (double) Toolkit.getDefaultToolkit().getScreenSize().width / (double)mouseEvent.getWidth();
-                    double scaleY = (double) Toolkit.getDefaultToolkit().getScreenSize().height / (double)mouseEvent.getHeight();
+                    double scaleX = (double) Toolkit.getDefaultToolkit().getScreenSize().width / mouseEvent.getWidth();
+                    double scaleY = (double) Toolkit.getDefaultToolkit().getScreenSize().height / mouseEvent.getHeight();
 
-                    int adjustedX = (int) (mouseEvent.getX() * scaleX);
-                    int adjustedY = (int) (mouseEvent.getY() * scaleY);
+                    double adjustedX =  (mouseEvent.getX() * scaleX);
+                    double adjustedY =  (mouseEvent.getY() * scaleY);
                     handleMouseEvent(mouseEvent);
                     // Xử lý sự kiện chuột ở đây
                     System.out.println("Received mouse event: " + mouseEvent);
@@ -108,7 +108,7 @@ public class RemoteDesktopClient {
 
     private void handleMouseEvent(Mouse mouseEvent) {
         // Di chuyển chuột đến vị trí nhận được
-        robot.mouseMove(mouseEvent.getX(), mouseEvent.getY());
+        robot.mouseMove((int)mouseEvent.getX(),(int) mouseEvent.getY());
 
         // Xử lý các sự kiện nhấn chuột
         if (mouseEvent.getEventID() == MouseEvent.MOUSE_PRESSED) {
