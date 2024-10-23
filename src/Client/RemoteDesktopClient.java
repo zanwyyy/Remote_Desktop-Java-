@@ -21,7 +21,6 @@ public class RemoteDesktopClient {
     private ServerSocket mouseServerSocket;
     private ServerSocket keyboardServerSocket;
     private ServerSocket screenServerSocket;
-    private String IPAdress;
     public RemoteDesktopClient() throws AWTException {
         // Khởi tạo UI
         frame = new JFrame("Client - Waiting for Connection");
@@ -42,14 +41,27 @@ public class RemoteDesktopClient {
     }
 
     private void connectToServer() {
-        try {
-            InetAddress localhost = InetAddress.getLocalHost();
-            IPAdress = localhost.getHostAddress();
-            System.out.println(IPAdress);
-            socket = new Socket(IPAdress, 1234); // Kết nối đến server
-            statusLabel.setText("Connected to server!");
+        while (true) {
+            try {
+                InetAddress localhost = InetAddress.getLocalHost();
+                System.out.println("Trying to connect to server  " );
+                socket = new Socket("192.165.2.2", 1234); // Kết nối đến server
+                statusLabel.setText("Connected to server!");
+                break; // Thoát khỏi vòng lặp nếu kết nối thành công
 
-            // Mở các ServerSocket cho chuột, bàn phím và màn hình
+            } catch (IOException e) {
+                statusLabel.setText("Failed to connect, retrying...");
+                System.out.println("Failed to connect, retrying in 5 seconds...");
+                try {
+                    Thread.sleep(5000); // Đợi 5 giây trước khi thử lại
+                } catch (InterruptedException ie) {
+                    ie.printStackTrace();
+                }
+            }
+        }
+
+        // Mở các ServerSocket cho chuột, bàn phím và màn hình
+        try {
             mouseServerSocket = new ServerSocket(1236);
             keyboardServerSocket = new ServerSocket(1237);
             screenServerSocket = new ServerSocket(1238); // Cổng cho màn hình
@@ -60,10 +72,10 @@ public class RemoteDesktopClient {
             new Thread(this::sendForScreenData).start();
 
         } catch (IOException e) {
-            statusLabel.setText("Failed to connect!");
             e.printStackTrace();
         }
     }
+
 
     private void listenForMouseEvents() {
         try {

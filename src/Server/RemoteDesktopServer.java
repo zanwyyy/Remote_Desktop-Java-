@@ -14,6 +14,7 @@ public class RemoteDesktopServer {
     private Socket selectedClient;
     private JLabel selectedClientLabel;
     private ClientHandler clientHandler;
+    private String address = "192.168.2.2";
     public RemoteDesktopServer() {
         // Khởi tạo UI
         frame = new JFrame("Server - Connected Clients");
@@ -48,12 +49,12 @@ public class RemoteDesktopServer {
 
     private void listenForClients(JButton selectClientButton) {
         new Thread(() -> {
-            try (ServerSocket serverSocket = new ServerSocket(1234)) {
+            try (ServerSocket serverSocket = new ServerSocket(1234,50,InetAddress.getByName(address))) {
                 System.out.println("Server is listening on port 1234...");
                 while (true) {
                     Socket clientSocket = serverSocket.accept();
                     clients.add(clientSocket);
-
+                    System.out.println(clientSocket.getLocalPort());
                     String clientIP = clientSocket.getInetAddress().getHostAddress();
                     addClientButton(clientIP, clientSocket, selectClientButton);
 
