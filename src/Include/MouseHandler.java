@@ -36,7 +36,7 @@ public class MouseHandler extends MouseAdapter {
         try {
             // Tạo đối tượng Mouse để lưu thông tin sự kiện chuột
             System.out.println("Gửi sự kiện chuột");
-            Mouse mouseData = new Mouse(e.getX(), e.getY(), e.getButton(), e.getID());
+            Mouse mouseData = new Mouse(e.getX(), e.getY(), e.getButton(), e.getID(),800,600);
             mouseOut.writeObject(mouseData);
             mouseOut.flush();
         } catch (Exception ex) {
