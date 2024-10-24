@@ -3,7 +3,7 @@ package Server;
 import Include.ImageUtils;
 import Include.KeyboardHandler;
 import Include.MouseHandler;
-import Include.Screen;  // Đảm bảo đã import lớp Screen
+import Include.MyScreen;  // Đảm bảo đã import lớp Screen
 
 import javax.swing.*;
 import java.awt.*;
@@ -54,10 +54,10 @@ public class ClientHandler {
         try (ObjectInputStream screenIn = new ObjectInputStream(screenSocket.getInputStream())) {
             while (true) {
                 // Nhận đối tượng Screen từ client
-                Screen screenData = (Screen) screenIn.readObject();
+                MyScreen myScreenData = (MyScreen) screenIn.readObject();
 
                 // Lấy dữ liệu ảnh từ đối tượng Screen
-                BufferedImage screenImage = screenData.getScreenData();
+                BufferedImage screenImage = myScreenData.getScreenData();
                 ImageUtils imageUtils = new ImageUtils();
                 BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 800, 600);
 

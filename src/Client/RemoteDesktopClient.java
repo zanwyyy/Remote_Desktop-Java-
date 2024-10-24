@@ -2,7 +2,7 @@ package Client;
 
 import Include.Keyboard;
 import Include.Mouse;
-import Include.Screen;
+import Include.MyScreen;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,6 +12,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
+import static java.lang.Math.round;
 
 public class RemoteDesktopClient {
     private final Robot robot;
@@ -21,7 +22,7 @@ public class RemoteDesktopClient {
     private ServerSocket mouseServerSocket;
     private ServerSocket keyboardServerSocket;
     private ServerSocket screenServerSocket;
-    public RemoteDesktopClient() throws AWTException {
+    public RemoteDesktopClient() throws AWTException, IOException {
         // Khởi tạo UI
         frame = new JFrame("Client - Waiting for Connection");
         frame.setSize(400, 200);
@@ -108,8 +109,9 @@ public class RemoteDesktopClient {
 
     private void handleMouseEvent(Mouse mouseEvent) {
         // Di chuyển chuột đến vị trí nhận được
-        robot.mouseMove((int)mouseEvent.getX(),(int) mouseEvent.getY());
-
+        int x = Math.toIntExact(round(mouseEvent.getX()));
+        int y = Math.toIntExact(round(mouseEvent.getY()));
+        robot.mouseMove(x,y);
         // Xử lý các sự kiện nhấn chuột
         if (mouseEvent.getEventID() == MouseEvent.MOUSE_PRESSED) {
             int buttonMask = getMouseButtonMask(mouseEvent.getButton());
@@ -191,10 +193,10 @@ public class RemoteDesktopClient {
                 BufferedImage screenImage = robot.createScreenCapture(screenRect);
 
                 // Tạo đối tượng Screen với dữ liệu màn hình
-                Screen screen = new Screen(screenRect.width, screenRect.height, screenImage);
+                MyScreen myScreen = new MyScreen(screenRect.width, screenRect.height, screenImage);
 
                 // Gửi đối tượng Screen qua socket
-                screenOut.writeObject(screen);
+                screenOut.writeObject(myScreen);
                 screenOut.flush();
 
                 System.out.println("Screen data sent successfully!");
@@ -209,7 +211,7 @@ public class RemoteDesktopClient {
     }
 
 
-    public static void main(String[] args) throws AWTException {
+    public static void main(String[] args) throws AWTException, IOException {
         new RemoteDesktopClient();
     }
 }

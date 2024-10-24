@@ -7,14 +7,14 @@ import java.io.IOException;
 import java.io.Serializable;
 import javax.imageio.ImageIO;
 
-public class Screen implements Serializable {
+public class MyScreen implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private int width;
     private int height;
     private byte[] screenData;  // Dữ liệu màn hình dưới dạng byte array
 
-    public Screen(int width, int height, BufferedImage screenData) throws IOException {
+    public MyScreen(int width, int height, BufferedImage screenData) throws IOException {
         this.width = width;
         this.height = height;
         this.screenData = convertToByteArray(screenData);  // Chuyển đổi BufferedImage sang byte array
