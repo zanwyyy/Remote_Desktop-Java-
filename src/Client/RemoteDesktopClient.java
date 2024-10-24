@@ -86,12 +86,13 @@ public class RemoteDesktopClient {
 
             // Đọc dữ liệu liên tục từ mouseSocket
             ObjectInputStream mouse = new ObjectInputStream(mouseSocket.getInputStream());
-
+            //screenRect.width, screenRect.height
             while (true) {
                 try {
                     Mouse mouseEvent = (Mouse) mouse.readObject();
-                    double scaleX = (double) Toolkit.getDefaultToolkit().getScreenSize().width / mouseEvent.getWidth();
-                    double scaleY = (double) Toolkit.getDefaultToolkit().getScreenSize().height / mouseEvent.getHeight();
+                    Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+                    double scaleX = (double) screenRect.width / mouseEvent.getWidth();
+                    double scaleY = (double) screenRect.height / mouseEvent.getHeight();
 
                     double adjustedX =  (mouseEvent.getX() * scaleX);
                     double adjustedY =  (mouseEvent.getY() * scaleY);

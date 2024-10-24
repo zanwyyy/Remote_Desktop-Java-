@@ -53,24 +53,26 @@ public class ClientHandler {
     private void receiveScreenData(Socket screenSocket) {
         try (ObjectInputStream screenIn = new ObjectInputStream(screenSocket.getInputStream())) {
             while (true) {
-                // Nhận đối tượng Screen từ client
                 MyScreen myScreenData = (MyScreen) screenIn.readObject();
-
-                // Lấy dữ liệu ảnh từ đối tượng Screen
                 BufferedImage screenImage = myScreenData.getScreenData();
                 ImageUtils imageUtils = new ImageUtils();
-                BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 800, 600);
+                BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 750, 550);
 
-                // Hiển thị ảnh trên JLabel
+                // Tính toán tỉ lệ
+                double scaleX = (double) resizedImage.getWidth() / myScreenData.getWidth();
+                double scaleY = (double) resizedImage.getHeight() / myScreenData.getHeight();
+
+                // Xử lý hiển thị hình ảnh
                 if (screenImage != null) {
-                    ImageIcon icon = new ImageIcon(resizedImage);  // Tạo ImageIcon từ BufferedImage
-                    screenLabel.setIcon(icon);  // Hiển thị ảnh trên JLabel
-                    screenLabel.revalidate();   // Yêu cầu JLabel cập nhật
-                    screenLabel.repaint();      // Vẽ lại JLabel để hiển thị ảnh mới
+                    ImageIcon icon = new ImageIcon(resizedImage);
+                    screenLabel.setIcon(icon);
+                    screenLabel.revalidate();
+                    screenLabel.repaint();
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
+
 }
