@@ -35,8 +35,8 @@ public class ClientHandler {
 
             // Gắn listener cho frame
             MouseHandler mouseHandler = new MouseHandler(mouseSocket);
-            displayFrame.addMouseListener(mouseHandler);
-            displayFrame.addMouseMotionListener(mouseHandler); // Gắn sự kiện di chuyển chuột
+            screenLabel.addMouseListener(mouseHandler);
+            screenLabel.addMouseMotionListener(mouseHandler); // Gắn sự kiện di chuyển chuột
             displayFrame.addKeyListener(new KeyboardHandler(keyboardSocket)); // Gắn sự kiện bàn phím
 
             System.out.println("Đã kết nối thành công tới socket chuột và bàn phím.");
@@ -59,9 +59,7 @@ public class ClientHandler {
                 ImageUtils imageUtils = new ImageUtils();
                 BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 800, 600);
 
-                // Tính toán tỉ lệ
-                double scaleX = (double) resizedImage.getWidth() / myScreenData.getWidth();
-                double scaleY = (double) resizedImage.getHeight() / myScreenData.getHeight();
+
 
                 // Xử lý hiển thị hình ảnh
                 if (screenImage != null) {

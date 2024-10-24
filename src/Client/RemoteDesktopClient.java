@@ -98,7 +98,6 @@ public class RemoteDesktopClient {
                     mouseEvent.setX(adjustedX);
                     mouseEvent.setY(adjustedY);
                     handleMouseEvent(mouseEvent);
-                    // Xử lý sự kiện chuột ở đây
                     System.out.println("Received mouse event: " + mouseEvent);
                 } catch (EOFException e) {
                     break;
