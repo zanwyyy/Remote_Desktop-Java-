@@ -91,9 +91,9 @@ public class RemoteDesktopClient {
                 try {
                     Mouse mouseEvent = (Mouse) mouse.readObject();
                     Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-                    double scaleX = (double) screenRect.width / mouseEvent.getWidth();
-                    double scaleY = (double) screenRect.height / mouseEvent.getHeight();
-
+                    double scaleX =  screenRect.width / mouseEvent.getWidth();
+                    double scaleY =  screenRect.height / mouseEvent.getHeight();
+                    System.out.println(screenRect.getWidth()+" "+screenRect.getHeight());
                     double adjustedX =  (mouseEvent.getX() * scaleX);
                     double adjustedY =  (mouseEvent.getY() * scaleY);
                     handleMouseEvent(mouseEvent);

@@ -24,7 +24,8 @@ public class ClientHandler {
 
         screenLabel = new JLabel();  // JLabel để hiển thị ảnh màn hình
         displayFrame.add(screenLabel, BorderLayout.CENTER);  // Thêm JLabel vào frame
-
+        System.out.println(screenLabel.getHeight());
+        System.out.println(screenLabel.getWidth());
         try {
             // Tạo các socket để gửi sự kiện chuột và bàn phím
             System.out.println("Kết nối tới socket chuột và bàn phím...");
@@ -56,7 +57,7 @@ public class ClientHandler {
                 MyScreen myScreenData = (MyScreen) screenIn.readObject();
                 BufferedImage screenImage = myScreenData.getScreenData();
                 ImageUtils imageUtils = new ImageUtils();
-                BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 750, 550);
+                BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 800, 600);
 
                 // Tính toán tỉ lệ
                 double scaleX = (double) resizedImage.getWidth() / myScreenData.getWidth();
