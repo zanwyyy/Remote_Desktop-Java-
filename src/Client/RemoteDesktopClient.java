@@ -22,7 +22,7 @@ public class RemoteDesktopClient {
     private Socket socket;
     private ServerSocket mouseServerSocket;
     private ServerSocket keyboardServerSocket;
-    private ServerSocket screenServerSocket;
+    // Xóa `screenServerSocket`
     private final ImageUtils img;
     private final Rectangle screenRect;
     private final AtomicInteger frameIdCounter = new AtomicInteger(0);
@@ -50,6 +50,7 @@ public class RemoteDesktopClient {
         }
         // Kết nối đến server
         connectToServer();
+
     }
 
     private void listenForCommands() {
@@ -61,13 +62,12 @@ public class RemoteDesktopClient {
                 if (command.equalsIgnoreCase("start")) {
                     if (!sendingScreen) {
                         sendingScreen = true;
-                        // Mở các ServerSocket cho chuột, bàn phím và màn hình
+                        // Mở các ServerSocket cho chuột và bàn phím
                         try {
                             mouseServerSocket = new ServerSocket(1236);
                             keyboardServerSocket = new ServerSocket(1237);
-                            screenServerSocket = new ServerSocket(1238); // Cổng cho màn hình
 
-                            // Khởi động các luồng để nhận dữ liệu chuột, bàn phím và màn hình
+                            // Khởi động các luồng để nhận dữ liệu chuột và bàn phím
                             new Thread(this::listenForMouseEvents).start();
                             new Thread(this::listenForKeyboardEvents).start();
                             new Thread(this::sendScreenData).start();
@@ -99,10 +99,8 @@ public class RemoteDesktopClient {
                 keyboardServerSocket.close();
                 System.out.println("Keyboard ServerSocket closed.");
             }
-            if (screenServerSocket != null && !screenServerSocket.isClosed()) {
-                screenServerSocket.close();
-                System.out.println("Screen ServerSocket closed.");
-            }
+
+            // Không cần đóng screenServerSocket vì nó đã được loại bỏ
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -139,7 +137,7 @@ public class RemoteDesktopClient {
 
             // Đọc dữ liệu liên tục từ mouseSocket
             ObjectInputStream mouse = new ObjectInputStream(mouseSocket.getInputStream());
-            while (true) {
+            while (sendingScreen) { // Thêm kiểm tra sendingScreen
                 try {
                     Object obj = mouse.readObject();
                     Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
@@ -169,7 +167,9 @@ public class RemoteDesktopClient {
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            if (sendingScreen) { // Chỉ in stack trace nếu đang gửi dữ liệu
+                e.printStackTrace();
+            }
         }
     }
 
@@ -223,7 +223,7 @@ public class RemoteDesktopClient {
 
             // Đọc dữ liệu liên tục từ keyboardSocket
             ObjectInputStream keyboard = new ObjectInputStream(keyboardSocket.getInputStream());
-            while (true) {
+            while (sendingScreen) { // Thêm kiểm tra sendingScreen
                 try {
                     Keyboard keyEvent = (Keyboard) keyboard.readObject();
                     handleKeyEvent(keyEvent);
@@ -234,7 +234,9 @@ public class RemoteDesktopClient {
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+            if (sendingScreen) { // Chỉ in stack trace nếu đang gửi dữ liệu
+                e.printStackTrace();
+            }
         }
     }
 
@@ -254,7 +256,8 @@ public class RemoteDesktopClient {
     private void sendScreenData() {
         try (DatagramSocket udpSocket = new DatagramSocket()) {
             InetAddress address = InetAddress.getByName("192.168.2.2"); // Địa chỉ server
-            while (true) { // Kiểm tra cờ để gửi dữ liệu
+            while (sendingScreen) { // Kiểm tra cờ để gửi dữ liệu
+                System.out.println("Sending screen data..."); // Log thêm
                 // Chụp ảnh màn hình
                 BufferedImage screenImage = robot.createScreenCapture(screenRect);
 
@@ -280,6 +283,7 @@ public class RemoteDesktopClient {
             e.printStackTrace();
         }
     }
+
 
     // Main method để chạy client
     public static void main(String[] args) throws AWTException, IOException {

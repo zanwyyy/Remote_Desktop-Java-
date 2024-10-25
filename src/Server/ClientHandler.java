@@ -5,12 +5,11 @@ import Include.KeyboardHandler;
 import Include.MouseHandler;
 
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.Socket;
-import java.net.InetAddress;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +26,7 @@ public class ClientHandler {
     // Thông tin về retry
     private static final int MAX_RETRIES = 5;
     private static final int RETRY_DELAY_MS = 2000; // 2 giây
-
+    private volatile boolean receiving = true;
     public void handleClient(Socket client) throws IOException {
         // Tạo giao diện để hiển thị màn hình client
         displayFrame = new JFrame("Displaying Client Screen - " + client.getInetAddress().getHostAddress());
@@ -35,6 +34,17 @@ public class ClientHandler {
         displayFrame.setLayout(new BorderLayout());
         displayFrame.setVisible(true);
         displayFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        // Thêm WindowListener để gửi lệnh "stop" khi đóng cửa sổ
+        displayFrame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // Gửi lệnh "stop" đến client
+                sendCommand("stop");
+                // Đóng các tài nguyên liên quan
+                closeResources();
+            }
+        });
 
         // Khởi tạo BufferedWriter để gửi lệnh đến client
         out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
@@ -110,12 +120,23 @@ public class ClientHandler {
 
     // Hàm nhận và hiển thị dữ liệu màn hình từ client
     private void receiveScreenData(int port) {
-        try (DatagramSocket socket = new DatagramSocket(port)) {
+        DatagramSocket socket = null;
+        try {
+            socket = new DatagramSocket(port);
+            socket.setSoTimeout(5000); // Đặt timeout để kiểm tra flag
             byte[] buffer = new byte[1400]; // Kích thước tối đa của gói tin UDP
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
-            while (true) {
-                socket.receive(packet);
+            while (receiving) {
+                try {
+                    socket.receive(packet);
+                } catch (SocketTimeoutException e) {
+                    // Kiểm tra lại flag receiving
+                    if (!receiving) {
+                        break;
+                    }
+                    continue; // Tiếp tục vòng lặp
+                }
                 byte[] packetData = new byte[packet.getLength()];
                 System.arraycopy(packet.getData(), 0, packetData, 0, packet.getLength());
 
@@ -162,8 +183,16 @@ public class ClientHandler {
                     frameBuffers.remove(frameId);
                 }
             }
+            System.out.println("Stopped receiving screen data.");
         } catch (Exception e) {
-            e.printStackTrace();
+            if (receiving) { // Chỉ in stack trace nếu đang nhận dữ liệu
+                e.printStackTrace();
+            }
+        } finally {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+                System.out.println("UDP Socket closed.");
+            }
         }
     }
 
@@ -187,6 +216,18 @@ public class ClientHandler {
 
         public byte[] getPacketData(int packetNum) {
             return packetsReceived.get((short) packetNum);
+        }
+    }
+
+    private void closeResources() {
+        try {
+            if (out != null) {
+                out.close();
+            }
+            // Đặt receiving thành false để thoát khỏi receiveScreenData
+            receiving = false;
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
