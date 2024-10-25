@@ -1,21 +1,26 @@
 package Server;
 
+import Include.ImageUtils;
 import Include.KeyboardHandler;
 import Include.MouseHandler;
-// Đảm bảo đã import lớp Screen
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ClientHandler {
     private JLabel screenLabel;  // Dùng để hiển thị màn hình từ client
+    private Map<Integer, FrameBuffer> frameBuffers = new HashMap<>();
 
     public void handleClient(Socket client) {
         JFrame displayFrame = new JFrame("Displaying Client Screen - " + client.getInetAddress().getHostAddress());
@@ -50,29 +55,80 @@ public class ClientHandler {
             JOptionPane.showMessageDialog(displayFrame, "Không thể kết nối tới client. Vui lòng kiểm tra lại!", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
+    public static class FrameBuffer {
+        private short totalPackets;
+        private Map<Short, byte[]> packetsReceived;
 
+        public FrameBuffer(short totalPackets) {
+            this.totalPackets = totalPackets;
+            this.packetsReceived = new HashMap<>();
+        }
+
+        public void addPacket(short packetNum, byte[] data) {
+            packetsReceived.put(packetNum, data);
+        }
+
+        public boolean isComplete() {
+            return packetsReceived.size() == totalPackets;
+        }
+
+        public byte[] getPacketData(int packetNum) {
+            return packetsReceived.get((short) packetNum);
+        }
+    }
     // Hàm nhận và hiển thị dữ liệu màn hình từ client
     private void receiveScreenData(int port) {
         try (DatagramSocket socket = new DatagramSocket(port)) {
-            byte[] buffer = new byte[65507]; // Kích thước tối đa của UDP
+            byte[] buffer = new byte[1400]; // Kích thước tối đa của gói tin UDP
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
             while (true) {
                 socket.receive(packet);
-                byte[] screenBytes = new byte[packet.getLength()];
-                System.arraycopy(packet.getData(), 0, screenBytes, 0, packet.getLength());
+                byte[] packetData = new byte[packet.getLength()];
+                System.arraycopy(packet.getData(), 0, packetData, 0, packet.getLength());
 
-                // Chuyển đổi byte[] thành BufferedImage
-                BufferedImage screenImage = ImageIO.read(new ByteArrayInputStream(screenBytes));
+                // Đọc header
+                ByteBuffer byteBuffer = ByteBuffer.wrap(packetData);
+                int frameId = byteBuffer.getInt();
+                short totalPackets = byteBuffer.getShort();
+                short packetNum = byteBuffer.getShort();
 
-                if (screenImage != null) {
-                    // Hiển thị hình ảnh lên JLabel
-                    ImageIcon icon = new ImageIcon(screenImage);
-                    screenLabel.setIcon(icon);
-                    screenLabel.repaint();
+                // Lấy dữ liệu hình ảnh
+                byte[] imageData = new byte[packetData.length - 8];
+                System.arraycopy(packetData, 8, imageData, 0, imageData.length);
+
+                // Lưu dữ liệu vào FrameBuffer
+                FrameBuffer frameBuffer = frameBuffers.get(frameId);
+                if (frameBuffer == null) {
+                    frameBuffer = new FrameBuffer(totalPackets);
+                    frameBuffers.put(frameId, frameBuffer);
                 }
+                frameBuffer.addPacket(packetNum, imageData);
 
-                System.out.println("Đã nhận dữ liệu màn hình!");
+                // Kiểm tra nếu đã nhận đủ gói tin để tái tạo
+                if (frameBuffer.isComplete()) {
+                    // Tái tạo mảng byte hoàn chỉnh
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    for (int i = 0; i < totalPackets; i++) {
+                        baos.write(frameBuffer.getPacketData(i));
+                    }
+                    byte[] fullImageData = baos.toByteArray();
+
+                    // Chuyển đổi byte[] thành BufferedImage
+                    BufferedImage screenImage = ImageIO.read(new ByteArrayInputStream(fullImageData));
+
+                    if (screenImage != null) {
+                        // Hiển thị hình ảnh lên JLabel
+                        ImageIcon icon = new ImageIcon(screenImage);
+                        screenLabel.setIcon(icon);
+                        screenLabel.repaint();
+                    }
+
+                    System.out.println("Đã tái tạo và hiển thị Frame ID: " + frameId);
+
+                    // Xóa FrameBuffer sau khi hoàn thành
+                    frameBuffers.remove(frameId);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();

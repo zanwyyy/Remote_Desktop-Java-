@@ -13,6 +13,8 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static java.lang.Math.round;
 
 public class RemoteDesktopClient {
@@ -23,8 +25,10 @@ public class RemoteDesktopClient {
     private ServerSocket mouseServerSocket;
     private ServerSocket keyboardServerSocket;
     private ServerSocket screenServerSocket;
-    private ImageUtils img;
-    private Rectangle screenRect;
+    private final ImageUtils img;
+    private final Rectangle screenRect;
+    private final AtomicInteger frameIdCounter = new AtomicInteger(0);
+    private final Fragment fragment;
     public RemoteDesktopClient() throws AWTException, IOException {
         // Khởi tạo UI
         frame = new JFrame("Client - Waiting for Connection");
@@ -37,7 +41,7 @@ public class RemoteDesktopClient {
         frame.setVisible(true);
         img = new ImageUtils();
         screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-
+        fragment = new Fragment();
         try {
             robot = new Robot();
         } catch (AWTException e) {
@@ -188,21 +192,8 @@ public class RemoteDesktopClient {
 
                 // Nén ảnh
                 byte[] screenBytes = img.compressImage(screenImage, 0.5f); // Chọn mức nén phù hợp
-
-                // Kiểm tra kích thước gói tin
-                if (screenBytes.length > 65507) { // Giới hạn của UDP
-                    System.err.println("Dữ liệu quá lớn để gửi qua UDP!");
-                    continue;
-                }
-
-                // Gửi dữ liệu
-                DatagramPacket packet = new DatagramPacket(screenBytes, screenBytes.length, address, 1234);
-                socket.send(packet);
-
-                System.out.println("Đã gửi dữ liệu màn hình!");
-
-                // Điều chỉnh tần suất gửi
-                Thread.sleep(100); // 10 fps
+                int frameId = frameIdCounter.getAndIncrement();
+                fragment.fragmentUDP(screenBytes,frameId,address,1238,socket);
             }
         } catch (Exception e) {
             e.printStackTrace();

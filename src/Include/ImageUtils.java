@@ -13,6 +13,8 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ImageUtils {
     // Phương thức thay đổi kích thước ảnh với chất lượng cao
@@ -45,5 +47,6 @@ public class ImageUtils {
         jpgWriter.dispose();
         return baos.toByteArray();
     }
+
 }
 
