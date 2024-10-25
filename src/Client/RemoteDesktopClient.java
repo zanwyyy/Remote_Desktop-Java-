@@ -139,6 +139,7 @@ public class RemoteDesktopClient {
             robot.mouseMove(x, y);
 
             // Thực hiện cuộn chuột
+
             robot.mouseWheel(mouseWheelEvent.getWheelRotation());
         } catch (Exception e) {
             e.printStackTrace();

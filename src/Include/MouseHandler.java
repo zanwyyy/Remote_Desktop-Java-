@@ -38,7 +38,7 @@ public class MouseHandler extends MouseAdapter {
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
-        sendMouseEvent(e);
+        sendMouseWheelEvent(e);
     }
     // Gửi sự kiện chuột đến client qua socket
     private void sendMouseEvent(MouseEvent e) {
