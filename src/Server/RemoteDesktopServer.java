@@ -2,7 +2,7 @@ package Server;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.*;
+import java.io.IOException;
 import java.net.*;
 import java.util.ArrayList;
 
@@ -14,7 +14,8 @@ public class RemoteDesktopServer {
     private Socket selectedClient;
     private JLabel selectedClientLabel;
     private ClientHandler clientHandler;
-    private String address = "192.168.2.2";
+    private String address = "192.168.2.2"; // Địa chỉ IP của server (có thể để "0.0.0.0" để nghe trên tất cả các giao diện)
+
     public RemoteDesktopServer() {
         // Khởi tạo UI
         frame = new JFrame("Server - Connected Clients");
@@ -31,7 +32,15 @@ public class RemoteDesktopServer {
         selectClientButton.addActionListener(e -> {
             if (selectedClient != null) {
                 clientHandler = new ClientHandler();
-                clientHandler.handleClient(selectedClient);
+                try {
+                    clientHandler.handleClient(selectedClient);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(frame, "Không thể xử lý client: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    ex.printStackTrace();
+                    return;
+                }
+                selectClientButton.setEnabled(false); // Vô hiệu hóa nút sau khi chọn
+                selectedClientLabel.setText("Selected Client: " + selectedClient.getInetAddress().getHostAddress() + " (Connecting)");
             }
         });
 
@@ -49,16 +58,13 @@ public class RemoteDesktopServer {
 
     private void listenForClients(JButton selectClientButton) {
         new Thread(() -> {
-            try (ServerSocket serverSocket = new ServerSocket(1234,50,InetAddress.getByName(address))) {
+            try (ServerSocket serverSocket = new ServerSocket(1234, 50, InetAddress.getByName(address))) {
                 System.out.println("Server is listening on port 1234...");
                 while (true) {
                     Socket clientSocket = serverSocket.accept();
                     clients.add(clientSocket);
-                    System.out.println(clientSocket.getLocalPort());
                     String clientIP = clientSocket.getInetAddress().getHostAddress();
                     addClientButton(clientIP, clientSocket, selectClientButton);
-
-                    // Bắt đầu một luồng để kiểm tra kết nối của client
                     checkClientConnection(clientSocket, clientIP);
                 }
             } catch (IOException e) {
@@ -74,7 +80,7 @@ public class RemoteDesktopServer {
 
         clientButton.addActionListener(e -> {
             selectedClient = clientSocket;
-            selectedClientLabel.setText("Selected Client: " + clientIP);
+            selectedClientLabel.setText("Selected Client: " + clientIP + " (Connecting)");
             selectClientButton.setEnabled(true);
         });
 

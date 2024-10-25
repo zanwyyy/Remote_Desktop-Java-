@@ -4,80 +4,110 @@ import Include.ImageUtils;
 import Include.KeyboardHandler;
 import Include.MouseHandler;
 
-import javax.imageio.ImageIO;
-import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import javax.imageio.ImageIO;
+import javax.swing.*;
 
 public class ClientHandler {
     private JLabel screenLabel;  // Dùng để hiển thị màn hình từ client
     private Map<Integer, FrameBuffer> frameBuffers = new HashMap<>();
     private ImageUtils utils;
-    public void handleClient(Socket client) {
-        JFrame displayFrame = new JFrame("Displaying Client Screen - " + client.getInetAddress().getHostAddress());
+    private BufferedWriter out;
+    private JFrame displayFrame;
+
+    // Thông tin về retry
+    private static final int MAX_RETRIES = 5;
+    private static final int RETRY_DELAY_MS = 2000; // 2 giây
+
+    public void handleClient(Socket client) throws IOException {
+        // Tạo giao diện để hiển thị màn hình client
+        displayFrame = new JFrame("Displaying Client Screen - " + client.getInetAddress().getHostAddress());
         displayFrame.setSize(800, 600);
         displayFrame.setLayout(new BorderLayout());
         displayFrame.setVisible(true);
         displayFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        screenLabel = new JLabel();  // JLabel để hiển thị ảnh màn hình
+        // Khởi tạo BufferedWriter để gửi lệnh đến client
+        out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream()));
+
+        // Tạo JLabel để hiển thị ảnh màn hình
+        screenLabel = new JLabel();
         utils = new ImageUtils();
-        displayFrame.add(screenLabel, BorderLayout.CENTER);  // Thêm JLabel vào frame
-        System.out.println(screenLabel.getHeight());
-        System.out.println(screenLabel.getWidth());
+        displayFrame.add(screenLabel, BorderLayout.CENTER);
+
+        // Gửi lệnh "start" đến client
+        sendCommand("start");
+        System.out.println("Sent 'start' command to client.");
+
         try {
-            // Tạo các socket để gửi sự kiện chuột và bàn phím
-            System.out.println("Kết nối tới socket chuột và bàn phím...");
-            Socket mouseSocket = new Socket(client.getInetAddress(), 1236); // Socket chuột
-            Socket keyboardSocket = new Socket(client.getInetAddress(), 1237); // Socket bàn phím
+            // Thêm một chút thời gian để client mở các ServerSocket
+            Thread.sleep(1000); // 1 giây (có thể điều chỉnh)
 
-            // Gắn listener cho frame
-            MouseHandler mouseHandler = new MouseHandler(mouseSocket);
-            screenLabel.addMouseListener(mouseHandler);
-            screenLabel.addMouseMotionListener(mouseHandler); // Gắn sự kiện di chuyển chuột
-            screenLabel.addMouseWheelListener(mouseHandler);
-            displayFrame.addKeyListener(new KeyboardHandler(keyboardSocket)); // Gắn sự kiện bàn phím
+            // Kết nối tới socket chuột và bàn phím với retry logic
+            Socket mouseSocket = connectWithRetry(client.getInetAddress(), 1236, MAX_RETRIES, RETRY_DELAY_MS);
+            Socket keyboardSocket = connectWithRetry(client.getInetAddress(), 1237, MAX_RETRIES, RETRY_DELAY_MS);
 
-            System.out.println("Đã kết nối thành công tới socket chuột và bàn phím.");
+            if (mouseSocket != null && keyboardSocket != null) {
+                // Gắn listener cho frame
+                MouseHandler mouseHandler = new MouseHandler(mouseSocket);
+                screenLabel.addMouseListener(mouseHandler);
+                screenLabel.addMouseMotionListener(mouseHandler); // Gắn sự kiện di chuyển chuột
+                screenLabel.addMouseWheelListener(mouseHandler);
+                displayFrame.addKeyListener(new KeyboardHandler(keyboardSocket)); // Gắn sự kiện bàn phím
 
-            // Bắt đầu nhận dữ liệu màn hình
-            new Thread(() -> receiveScreenData(1238)).start();  // Chạy luồng để nhận ảnh màn hình
+                System.out.println("Đã kết nối thành công tới socket chuột và bàn phím.");
 
+                // Bắt đầu nhận dữ liệu màn hình
+                new Thread(() -> receiveScreenData(1238)).start();  // Chạy luồng để nhận ảnh màn hình
+            } else {
+                JOptionPane.showMessageDialog(displayFrame, "Không thể kết nối tới các socket chuột và bàn phím của client sau " + MAX_RETRIES + " lần thử.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Phương thức gửi lệnh đến client
+    public void sendCommand(String command) {
+        try {
+            out.write(command);
+            out.newLine();
+            out.flush();
+            System.out.println("Sent command to client: " + command);
         } catch (IOException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(displayFrame, "Không thể kết nối tới client. Vui lòng kiểm tra lại!", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
-    public static class FrameBuffer {
-        private short totalPackets;
-        private Map<Short, byte[]> packetsReceived;
 
-        public FrameBuffer(short totalPackets) {
-            this.totalPackets = totalPackets;
-            this.packetsReceived = new HashMap<>();
+    // Phương thức kết nối với retry logic
+    private Socket connectWithRetry(InetAddress address, int port, int maxRetries, int delayMillis) {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                System.out.println("Attempt " + attempt + " to connect to " + address.getHostAddress() + ":" + port);
+                Socket socket = new Socket(address, port);
+                System.out.println("Connected to " + address.getHostAddress() + ":" + port);
+                return socket;
+            } catch (IOException e) {
+                System.out.println("Connection attempt " + attempt + " to " + address.getHostAddress() + ":" + port + " failed.");
+                try {
+                    Thread.sleep(delayMillis);
+                } catch (InterruptedException ie) {
+                    ie.printStackTrace();
+                }
+            }
         }
-
-        public void addPacket(short packetNum, byte[] data) {
-            packetsReceived.put(packetNum, data);
-        }
-
-        public boolean isComplete() {
-            return packetsReceived.size() == totalPackets;
-        }
-
-        public byte[] getPacketData(int packetNum) {
-            return packetsReceived.get((short) packetNum);
-        }
+        return null; // Không kết nối được sau maxRetries lần thử
     }
+
     // Hàm nhận và hiển thị dữ liệu màn hình từ client
     private void receiveScreenData(int port) {
         try (DatagramSocket socket = new DatagramSocket(port)) {
@@ -115,12 +145,13 @@ public class ClientHandler {
                         baos.write(frameBuffer.getPacketData(i));
                     }
                     byte[] fullImageData = baos.toByteArray();
+
                     // Chuyển đổi byte[] thành BufferedImage
                     BufferedImage screenImage = ImageIO.read(new ByteArrayInputStream(fullImageData));
-                    BufferedImage resizeimage = utils.resizeImage(screenImage,800,600);
+                    BufferedImage resizeImage = utils.resizeImage(screenImage, 800, 600);
                     if (screenImage != null) {
                         // Hiển thị hình ảnh lên JLabel
-                        ImageIcon icon = new ImageIcon(resizeimage);
+                        ImageIcon icon = new ImageIcon(resizeImage);
                         screenLabel.setIcon(icon);
                         screenLabel.repaint();
                     }
@@ -136,4 +167,26 @@ public class ClientHandler {
         }
     }
 
+    // Lớp FrameBuffer để tái tạo dữ liệu từ nhiều gói tin UDP
+    public static class FrameBuffer {
+        private short totalPackets;
+        private Map<Short, byte[]> packetsReceived;
+
+        public FrameBuffer(short totalPackets) {
+            this.totalPackets = totalPackets;
+            this.packetsReceived = new HashMap<>();
+        }
+
+        public void addPacket(short packetNum, byte[] data) {
+            packetsReceived.put(packetNum, data);
+        }
+
+        public boolean isComplete() {
+            return packetsReceived.size() == totalPackets;
+        }
+
+        public byte[] getPacketData(int packetNum) {
+            return packetsReceived.get((short) packetNum);
+        }
+    }
 }

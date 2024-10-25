@@ -2,6 +2,7 @@ package Client;
 
 import Include.*;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.InputEvent;
@@ -26,6 +27,9 @@ public class RemoteDesktopClient {
     private final Rectangle screenRect;
     private final AtomicInteger frameIdCounter = new AtomicInteger(0);
     private final Fragment fragment;
+    private volatile boolean sendingScreen = false;
+    private ObjectOutputStream out;
+
     public RemoteDesktopClient() throws AWTException, IOException {
         // Khởi tạo UI
         frame = new JFrame("Client - Waiting for Connection");
@@ -48,15 +52,72 @@ public class RemoteDesktopClient {
         connectToServer();
     }
 
+    private void listenForCommands() {
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String command;
+            while ((command = reader.readLine()) != null) {
+                System.out.println("Received command from server: " + command);
+                if (command.equalsIgnoreCase("start")) {
+                    if (!sendingScreen) {
+                        sendingScreen = true;
+                        // Mở các ServerSocket cho chuột, bàn phím và màn hình
+                        try {
+                            mouseServerSocket = new ServerSocket(1236);
+                            keyboardServerSocket = new ServerSocket(1237);
+                            screenServerSocket = new ServerSocket(1238); // Cổng cho màn hình
+
+                            // Khởi động các luồng để nhận dữ liệu chuột, bàn phím và màn hình
+                            new Thread(this::listenForMouseEvents).start();
+                            new Thread(this::listenForKeyboardEvents).start();
+                            new Thread(this::sendScreenData).start();
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        System.out.println("Started sending screen data.");
+                    }
+                } else if (command.equalsIgnoreCase("stop")) {
+                    sendingScreen = false;
+                    System.out.println("Stopped sending screen data.");
+                    // Đóng các kết nối socket nếu cần
+                    closeSockets();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void closeSockets() {
+        try {
+            if (mouseServerSocket != null && !mouseServerSocket.isClosed()) {
+                mouseServerSocket.close();
+                System.out.println("Mouse ServerSocket closed.");
+            }
+            if (keyboardServerSocket != null && !keyboardServerSocket.isClosed()) {
+                keyboardServerSocket.close();
+                System.out.println("Keyboard ServerSocket closed.");
+            }
+            if (screenServerSocket != null && !screenServerSocket.isClosed()) {
+                screenServerSocket.close();
+                System.out.println("Screen ServerSocket closed.");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void connectToServer() {
         while (true) {
             try {
-                InetAddress localhost = InetAddress.getLocalHost();
-                System.out.println("Trying to connect to server  " );
-                socket = new Socket("192.168.2.2", 1234); // Kết nối đến server
+                InetAddress serverAddress = InetAddress.getByName("192.168.2.2"); // Thay đổi nếu cần
+                System.out.println("Trying to connect to server...");
+                socket = new Socket(serverAddress, 1234); // Kết nối đến server
+                out = new ObjectOutputStream(socket.getOutputStream());
+                out.flush();
                 statusLabel.setText("Connected to server!");
                 break; // Thoát khỏi vòng lặp nếu kết nối thành công
-
             } catch (IOException e) {
                 statusLabel.setText("Failed to connect, retrying...");
                 System.out.println("Failed to connect, retrying in 5 seconds...");
@@ -67,62 +128,42 @@ public class RemoteDesktopClient {
                 }
             }
         }
-
-        // Mở các ServerSocket cho chuột, bàn phím và màn hình
-        try {
-            mouseServerSocket = new ServerSocket(1236);
-            keyboardServerSocket = new ServerSocket(1237);
-            screenServerSocket = new ServerSocket(1238); // Cổng cho màn hình
-
-            // Khởi động các luồng để nhận dữ liệu
-            new Thread(this::listenForMouseEvents).start();
-            new Thread(this::listenForKeyboardEvents).start();
-            new Thread(this::sendScreenData).start();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        // Bắt đầu lắng nghe lệnh từ server
+        new Thread(this::listenForCommands).start();
     }
-
 
     private void listenForMouseEvents() {
         try {
             Socket mouseSocket = mouseServerSocket.accept();
             System.out.println("Mouse socket connected.");
 
-
             // Đọc dữ liệu liên tục từ mouseSocket
             ObjectInputStream mouse = new ObjectInputStream(mouseSocket.getInputStream());
-            //screenRect.width, screenRect.height
             while (true) {
                 try {
-                    Object obj =  mouse.readObject();
+                    Object obj = mouse.readObject();
                     Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-                    if(obj instanceof Mouse)
-                    {
-                        Mouse mouseEvent =(Mouse) obj;
-                        double scaleX =  screenRect.width / mouseEvent.getWidth();
-                        double scaleY =  screenRect.height / mouseEvent.getHeight();
-                        double adjustedX =  (mouseEvent.getX() * scaleX);
-                        double adjustedY =  (mouseEvent.getY() * scaleY);
+                    if (obj instanceof Mouse) {
+                        Mouse mouseEvent = (Mouse) obj;
+                        double scaleX = screenRect.width / mouseEvent.getWidth();
+                        double scaleY = screenRect.height / mouseEvent.getHeight();
+                        double adjustedX = (mouseEvent.getX() * scaleX);
+                        double adjustedY = (mouseEvent.getY() * scaleY);
                         mouseEvent.setX(adjustedX);
                         mouseEvent.setY(adjustedY);
                         handleMouseEvent(mouseEvent);
                         System.out.println("Received mouse event: " + mouseEvent);
-                    }
-                    else
-                    {
+                    } else if (obj instanceof MouseWheel) {
                         MouseWheel mouseWheel = (MouseWheel) obj;
-                        double scaleX =  screenRect.width / mouseWheel.getScreenWidth();
-                        double scaleY =  screenRect.height / mouseWheel.getScreenHeight();
-                        double adjustedX =  (mouseWheel.getX() * scaleX);
-                        double adjustedY =  (mouseWheel.getY() * scaleY);
+                        double scaleX = screenRect.width / mouseWheel.getScreenWidth();
+                        double scaleY = screenRect.height / mouseWheel.getScreenHeight();
+                        double adjustedX = (mouseWheel.getX() * scaleX);
+                        double adjustedY = (mouseWheel.getY() * scaleY);
                         mouseWheel.setX(adjustedX);
                         mouseWheel.setY(adjustedY);
                         handleMouseWheelEvent(mouseWheel);
                         System.out.println("Received mouse event: " + mouseWheel);
                     }
-
                 } catch (EOFException e) {
                     break;
                 }
@@ -131,6 +172,7 @@ public class RemoteDesktopClient {
             e.printStackTrace();
         }
     }
+
     private void handleMouseWheelEvent(MouseWheel mouseWheelEvent) {
         try {
             // Di chuyển chuột đến vị trí nhận được
@@ -139,17 +181,17 @@ public class RemoteDesktopClient {
             robot.mouseMove(x, y);
 
             // Thực hiện cuộn chuột
-
             robot.mouseWheel(mouseWheelEvent.getWheelRotation());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     private void handleMouseEvent(Mouse mouseEvent) {
         // Di chuyển chuột đến vị trí nhận được
         int x = Math.toIntExact(round(mouseEvent.getX()));
         int y = Math.toIntExact(round(mouseEvent.getY()));
-        robot.mouseMove(x,y);
+        robot.mouseMove(x, y);
         // Xử lý các sự kiện nhấn chuột
         if (mouseEvent.getEventID() == MouseEvent.MOUSE_PRESSED) {
             int buttonMask = getMouseButtonMask(mouseEvent.getButton());
@@ -158,7 +200,6 @@ public class RemoteDesktopClient {
             int buttonMask = getMouseButtonMask(mouseEvent.getButton());
             robot.mouseRelease(buttonMask);
         }
-
     }
 
     // Xác định buttonMask cho các nút chuột trái, phải, giữa
@@ -175,14 +216,13 @@ public class RemoteDesktopClient {
         }
     }
 
-
     private void listenForKeyboardEvents() {
         try {
             Socket keyboardSocket = keyboardServerSocket.accept();
             System.out.println("Keyboard socket connected.");
 
             // Đọc dữ liệu liên tục từ keyboardSocket
-            ObjectInputStream keyboard= new ObjectInputStream(keyboardSocket.getInputStream());
+            ObjectInputStream keyboard = new ObjectInputStream(keyboardSocket.getInputStream());
             while (true) {
                 try {
                     Keyboard keyEvent = (Keyboard) keyboard.readObject();
@@ -197,6 +237,7 @@ public class RemoteDesktopClient {
             e.printStackTrace();
         }
     }
+
     private void handleKeyEvent(Keyboard keyEvent) {
         int keyCode = keyEvent.getKeyCode();
 
@@ -209,27 +250,38 @@ public class RemoteDesktopClient {
             robot.keyRelease(keyCode);
         }
     }
-    public void sendScreenData() {
-        try (DatagramSocket socket = new DatagramSocket()) {
 
-            while (true) {
+    private void sendScreenData() {
+        try (DatagramSocket udpSocket = new DatagramSocket()) {
+            InetAddress address = InetAddress.getByName("192.168.2.2"); // Địa chỉ server
+            while (true) { // Kiểm tra cờ để gửi dữ liệu
                 // Chụp ảnh màn hình
                 BufferedImage screenImage = robot.createScreenCapture(screenRect);
-                InetAddress address = InetAddress.getByName("192.168.2.2");
+
                 // Giảm độ phân giải nếu cần
+                BufferedImage resizedImage = img.resizeImage(screenImage, screenRect.width / 2, screenRect.height / 2);
 
                 // Nén ảnh
-                byte[] screenBytes = img.compressImage(screenImage, 0.5f); // Chọn mức nén phù hợp
+                byte[] screenBytes = img.compressImage(resizedImage, 0.5f); // Chọn mức nén phù hợp
+                System.out.println("Compressed screen bytes size: " + screenBytes.length);
+
+                // Tăng Frame ID
                 int frameId = frameIdCounter.getAndIncrement();
-                fragment.fragmentUDP(screenBytes,frameId,address,1238,socket);
+
+                // Chia nhỏ dữ liệu thành các gói tin nhỏ
+                fragment.fragmentUDP(screenBytes, frameId, address, 1238, udpSocket);
+
+                System.out.println("Đã gửi Frame ID: " + frameId);
+
+                // Điều chỉnh tần suất gửi
+                Thread.sleep(100); // 10 fps
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-
-
+    // Main method để chạy client
     public static void main(String[] args) throws AWTException, IOException {
         new RemoteDesktopClient();
     }
