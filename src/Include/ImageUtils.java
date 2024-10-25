@@ -1,5 +1,9 @@
 package Include;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
@@ -7,6 +11,8 @@ import java.awt.image.BufferedImage;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 public class ImageUtils {
     // Phương thức thay đổi kích thước ảnh với chất lượng cao
@@ -24,6 +30,20 @@ public class ImageUtils {
         g2d.dispose();
 
         return outputImage;
+    }
+    private byte[] compressImage(BufferedImage image, float quality) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageWriter jpgWriter = ImageIO.getImageWritersByFormatName("jpg").next();
+        ImageWriteParam jpgWriteParam = jpgWriter.getDefaultWriteParam();
+        jpgWriteParam.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        jpgWriteParam.setCompressionQuality(quality); // Chọn mức nén từ 0.0 đến 1.0
+
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            jpgWriter.setOutput(ios);
+            jpgWriter.write(null, new javax.imageio.IIOImage(image, null, null), jpgWriteParam);
+        }
+        jpgWriter.dispose();
+        return baos.toByteArray();
     }
 }
 
