@@ -31,7 +31,7 @@ public class ImageUtils {
 
         return outputImage;
     }
-    private byte[] compressImage(BufferedImage image, float quality) throws IOException {
+    public byte[] compressImage(BufferedImage image, float quality) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageWriter jpgWriter = ImageIO.getImageWritersByFormatName("jpg").next();
         ImageWriteParam jpgWriteParam = jpgWriter.getDefaultWriteParam();

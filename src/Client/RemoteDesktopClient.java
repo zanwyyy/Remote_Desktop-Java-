@@ -1,5 +1,6 @@
 package Client;
 
+import Include.ImageUtils;
 import Include.Keyboard;
 import Include.Mouse;
 import Include.MyScreen;
@@ -22,6 +23,8 @@ public class RemoteDesktopClient {
     private ServerSocket mouseServerSocket;
     private ServerSocket keyboardServerSocket;
     private ServerSocket screenServerSocket;
+    private ImageUtils img;
+    private Rectangle screenRect;
     public RemoteDesktopClient() throws AWTException, IOException {
         // Khởi tạo UI
         frame = new JFrame("Client - Waiting for Connection");
@@ -32,6 +35,9 @@ public class RemoteDesktopClient {
         frame.add(statusLabel);
 
         frame.setVisible(true);
+        img = new ImageUtils();
+        screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
+
         try {
             robot = new Robot();
         } catch (AWTException e) {
@@ -70,7 +76,7 @@ public class RemoteDesktopClient {
             // Khởi động các luồng để nhận dữ liệu
             new Thread(this::listenForMouseEvents).start();
             new Thread(this::listenForKeyboardEvents).start();
-            new Thread(this::sendForScreenData).start();
+            new Thread(this::sendScreenData).start();
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -171,45 +177,38 @@ public class RemoteDesktopClient {
             robot.keyRelease(keyCode);
         }
     }
-    private void sendForScreenData() {
-        try {
-            Socket screenSocket = screenServerSocket.accept();
-            ObjectOutputStream screenOut = new ObjectOutputStream(screenSocket.getOutputStream());
-            screenOut.flush();
-            sendScreenData(screenOut);
+    public void sendScreenData() {
+        try (DatagramSocket socket = new DatagramSocket()) {
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    public void sendScreenData(ObjectOutputStream screenOut) {
-        try {
-            // Khởi tạo đối tượng Robot để chụp ảnh màn hình
-            Robot robot = new Robot();
-            Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-
-            // Vòng lặp liên tục gửi ảnh màn hình
             while (true) {
                 // Chụp ảnh màn hình
                 BufferedImage screenImage = robot.createScreenCapture(screenRect);
+                InetAddress address = InetAddress.getByName("192.168.2.2");
+                // Giảm độ phân giải nếu cần
 
-                // Tạo đối tượng Screen với dữ liệu màn hình
-                MyScreen myScreen = new MyScreen(screenRect.width, screenRect.height, screenImage);
+                // Nén ảnh
+                byte[] screenBytes = img.compressImage(screenImage, 0.5f); // Chọn mức nén phù hợp
 
-                // Gửi đối tượng Screen qua socket
-                screenOut.writeObject(myScreen);
-                screenOut.flush();
+                // Kiểm tra kích thước gói tin
+                if (screenBytes.length > 65507) { // Giới hạn của UDP
+                    System.err.println("Dữ liệu quá lớn để gửi qua UDP!");
+                    continue;
+                }
 
-                System.out.println("Screen data sent successfully!");
+                // Gửi dữ liệu
+                DatagramPacket packet = new DatagramPacket(screenBytes, screenBytes.length, address, 1234);
+                socket.send(packet);
 
-                // Thêm một khoảng thời gian chờ giữa các lần gửi để tránh quá tải
-                Thread.sleep(100); // Thay đổi giá trị này để điều chỉnh tần suất gửi
+                System.out.println("Đã gửi dữ liệu màn hình!");
+
+                // Điều chỉnh tần suất gửi
+                Thread.sleep(100); // 10 fps
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
 
     public static void main(String[] args) throws AWTException, IOException {
