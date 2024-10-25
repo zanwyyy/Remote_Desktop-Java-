@@ -60,8 +60,6 @@ This project is a **Java-based Remote Desktop Application** using a **Client-Ser
 3. **Controlling Mouse and Keyboard**:
    - Once connected, the server captures mouse and keyboard inputs and sends them to the client, allowing real-time remote control.
 
-4. **Ending a Session**:
-   - To stop a session, use the `stop` command, which halts screen streaming and closes the additional sockets for mouse and keyboard control.
 
 ## Code Overview
 
