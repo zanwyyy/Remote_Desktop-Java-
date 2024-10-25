@@ -1,15 +1,17 @@
 package Server;
 
-import Include.ImageUtils;
 import Include.KeyboardHandler;
 import Include.MouseHandler;
-import Include.MyScreen;  // Đảm bảo đã import lớp Screen
+// Đảm bảo đã import lớp Screen
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.Socket;
 
 public class ClientHandler {
@@ -31,7 +33,6 @@ public class ClientHandler {
             System.out.println("Kết nối tới socket chuột và bàn phím...");
             Socket mouseSocket = new Socket(client.getInetAddress(), 1236); // Socket chuột
             Socket keyboardSocket = new Socket(client.getInetAddress(), 1237); // Socket bàn phím
-            Socket screenSocket = new Socket(client.getInetAddress(), 1238);  // Socket để nhận dữ liệu màn hình
 
             // Gắn listener cho frame
             MouseHandler mouseHandler = new MouseHandler(mouseSocket);
@@ -42,7 +43,7 @@ public class ClientHandler {
             System.out.println("Đã kết nối thành công tới socket chuột và bàn phím.");
 
             // Bắt đầu nhận dữ liệu màn hình
-            new Thread(() -> receiveScreenData(screenSocket)).start();  // Chạy luồng để nhận ảnh màn hình
+            new Thread(() -> receiveScreenData(1238)).start();  // Chạy luồng để nhận ảnh màn hình
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -51,25 +52,29 @@ public class ClientHandler {
     }
 
     // Hàm nhận và hiển thị dữ liệu màn hình từ client
-    private void receiveScreenData(Socket screenSocket) {
-        try (ObjectInputStream screenIn = new ObjectInputStream(screenSocket.getInputStream())) {
+    private void receiveScreenData(int port) {
+        try (DatagramSocket socket = new DatagramSocket(port)) {
+            byte[] buffer = new byte[65507]; // Kích thước tối đa của UDP
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
             while (true) {
-                MyScreen myScreenData = (MyScreen) screenIn.readObject();
-                BufferedImage screenImage = myScreenData.getScreenData();
-                ImageUtils imageUtils = new ImageUtils();
-                BufferedImage resizedImage = imageUtils.resizeImage(screenImage, 800, 600);
+                socket.receive(packet);
+                byte[] screenBytes = new byte[packet.getLength()];
+                System.arraycopy(packet.getData(), 0, screenBytes, 0, packet.getLength());
 
+                // Chuyển đổi byte[] thành BufferedImage
+                BufferedImage screenImage = ImageIO.read(new ByteArrayInputStream(screenBytes));
 
-
-                // Xử lý hiển thị hình ảnh
                 if (screenImage != null) {
-                    ImageIcon icon = new ImageIcon(resizedImage);
+                    // Hiển thị hình ảnh lên JLabel
+                    ImageIcon icon = new ImageIcon(screenImage);
                     screenLabel.setIcon(icon);
-                    screenLabel.revalidate();
                     screenLabel.repaint();
                 }
+
+                System.out.println("Đã nhận dữ liệu màn hình!");
             }
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
