@@ -36,12 +36,27 @@ public class MouseHandler extends MouseAdapter {
         sendMouseEvent(e);
     }
 
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        sendMouseEvent(e);
+    }
     // Gửi sự kiện chuột đến client qua socket
     private void sendMouseEvent(MouseEvent e) {
         try {
             // Tạo đối tượng Mouse để lưu thông tin sự kiện chuột
             System.out.println("Gửi sự kiện chuột");
             Mouse mouseData = new Mouse(e.getX(), e.getY(), e.getButton(), e.getID(),800,600);
+            mouseOut.writeObject(mouseData);
+            mouseOut.flush();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+    private void sendMouseWheelEvent(MouseWheelEvent e) {
+        try {
+            // Tạo đối tượng Mouse để lưu thông tin sự kiện chuột
+            System.out.println("Gửi sự kiện chuột");
+            MouseWheel mouseData = new MouseWheel(e.getX(),e.getY(),e.getWheelRotation(),e.getScrollAmount(),e.getScrollType(),800,600);
             mouseOut.writeObject(mouseData);
             mouseOut.flush();
         } catch (Exception ex) {

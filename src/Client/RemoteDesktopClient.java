@@ -1,9 +1,6 @@
 package Client;
 
-import Include.ImageUtils;
-import Include.Keyboard;
-import Include.Mouse;
-import Include.MyScreen;
+import Include.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -99,16 +96,33 @@ public class RemoteDesktopClient {
             //screenRect.width, screenRect.height
             while (true) {
                 try {
-                    Mouse mouseEvent = (Mouse) mouse.readObject();
+                    Object obj =  mouse.readObject();
                     Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-                    double scaleX =  screenRect.width / mouseEvent.getWidth();
-                    double scaleY =  screenRect.height / mouseEvent.getHeight();
-                    double adjustedX =  (mouseEvent.getX() * scaleX);
-                    double adjustedY =  (mouseEvent.getY() * scaleY);
-                    mouseEvent.setX(adjustedX);
-                    mouseEvent.setY(adjustedY);
-                    handleMouseEvent(mouseEvent);
-                    System.out.println("Received mouse event: " + mouseEvent);
+                    if(obj instanceof Mouse)
+                    {
+                        Mouse mouseEvent =(Mouse) obj;
+                        double scaleX =  screenRect.width / mouseEvent.getWidth();
+                        double scaleY =  screenRect.height / mouseEvent.getHeight();
+                        double adjustedX =  (mouseEvent.getX() * scaleX);
+                        double adjustedY =  (mouseEvent.getY() * scaleY);
+                        mouseEvent.setX(adjustedX);
+                        mouseEvent.setY(adjustedY);
+                        handleMouseEvent(mouseEvent);
+                        System.out.println("Received mouse event: " + mouseEvent);
+                    }
+                    else
+                    {
+                        MouseWheel mouseWheel = (MouseWheel) obj;
+                        double scaleX =  screenRect.width / mouseWheel.getScreenWidth();
+                        double scaleY =  screenRect.height / mouseWheel.getScreenHeight();
+                        double adjustedX =  (mouseWheel.getX() * scaleX);
+                        double adjustedY =  (mouseWheel.getY() * scaleY);
+                        mouseWheel.setX(adjustedX);
+                        mouseWheel.setY(adjustedY);
+                        handleMouseWheelEvent(mouseWheel);
+                        System.out.println("Received mouse event: " + mouseWheel);
+                    }
+
                 } catch (EOFException e) {
                     break;
                 }
@@ -117,7 +131,19 @@ public class RemoteDesktopClient {
             e.printStackTrace();
         }
     }
+    private void handleMouseWheelEvent(MouseWheel mouseWheelEvent) {
+        try {
+            // Di chuyển chuột đến vị trí nhận được
+            int x = Math.toIntExact(round(mouseWheelEvent.getX()));
+            int y = Math.toIntExact(round(mouseWheelEvent.getY()));
+            robot.mouseMove(x, y);
 
+            // Thực hiện cuộn chuột
+            robot.mouseWheel(mouseWheelEvent.getWheelRotation());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
     private void handleMouseEvent(Mouse mouseEvent) {
         // Di chuyển chuột đến vị trí nhận được
         int x = Math.toIntExact(round(mouseEvent.getX()));
@@ -131,6 +157,7 @@ public class RemoteDesktopClient {
             int buttonMask = getMouseButtonMask(mouseEvent.getButton());
             robot.mouseRelease(buttonMask);
         }
+
     }
 
     // Xác định buttonMask cho các nút chuột trái, phải, giữa

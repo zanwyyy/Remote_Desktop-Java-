@@ -18,7 +18,7 @@ import java.util.Map;
 
 public class ImageUtils {
     // Phương thức thay đổi kích thước ảnh với chất lượng cao
-    public static BufferedImage resizeImage(BufferedImage originalImage, int targetWidth, int targetHeight) {
+    public  BufferedImage resizeImage(BufferedImage originalImage, int targetWidth, int targetHeight) {
         BufferedImage outputImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2d = outputImage.createGraphics();
 

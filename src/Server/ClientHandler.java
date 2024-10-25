@@ -21,7 +21,7 @@ import java.util.Map;
 public class ClientHandler {
     private JLabel screenLabel;  // Dùng để hiển thị màn hình từ client
     private Map<Integer, FrameBuffer> frameBuffers = new HashMap<>();
-
+    private ImageUtils utils;
     public void handleClient(Socket client) {
         JFrame displayFrame = new JFrame("Displaying Client Screen - " + client.getInetAddress().getHostAddress());
         displayFrame.setSize(800, 600);
@@ -30,6 +30,7 @@ public class ClientHandler {
         displayFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         screenLabel = new JLabel();  // JLabel để hiển thị ảnh màn hình
+        utils = new ImageUtils();
         displayFrame.add(screenLabel, BorderLayout.CENTER);  // Thêm JLabel vào frame
         System.out.println(screenLabel.getHeight());
         System.out.println(screenLabel.getWidth());
@@ -43,6 +44,7 @@ public class ClientHandler {
             MouseHandler mouseHandler = new MouseHandler(mouseSocket);
             screenLabel.addMouseListener(mouseHandler);
             screenLabel.addMouseMotionListener(mouseHandler); // Gắn sự kiện di chuyển chuột
+            screenLabel.addMouseWheelListener(mouseHandler);
             displayFrame.addKeyListener(new KeyboardHandler(keyboardSocket)); // Gắn sự kiện bàn phím
 
             System.out.println("Đã kết nối thành công tới socket chuột và bàn phím.");
@@ -113,13 +115,12 @@ public class ClientHandler {
                         baos.write(frameBuffer.getPacketData(i));
                     }
                     byte[] fullImageData = baos.toByteArray();
-
                     // Chuyển đổi byte[] thành BufferedImage
                     BufferedImage screenImage = ImageIO.read(new ByteArrayInputStream(fullImageData));
-
+                    BufferedImage resizeimage = utils.resizeImage(screenImage,800,600);
                     if (screenImage != null) {
                         // Hiển thị hình ảnh lên JLabel
-                        ImageIcon icon = new ImageIcon(screenImage);
+                        ImageIcon icon = new ImageIcon(resizeimage);
                         screenLabel.setIcon(icon);
                         screenLabel.repaint();
                     }
