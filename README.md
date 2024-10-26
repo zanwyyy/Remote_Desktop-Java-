@@ -61,28 +61,8 @@ This project is a **Java-based Remote Desktop Application** using a **Client-Ser
    - Once connected, the server captures mouse and keyboard inputs and sends them to the client, allowing real-time remote control.
 
 
-## Code Overview
-
-- **Server Side**:
-  - `RemoteDesktopServer.java`: Main server class that handles client connections, displays connected clients, and sends control commands.
-  - `ClientHandler.java`: Manages individual client sessions and socket communication.
-
-- **Client Side**:
-  - `RemoteDesktopClient.java`: Main client class, manages server connection, and listens for commands.
-  - **Event Listeners**:
-    - **Screen**: Streams screen data to the server on command.
-    - **Mouse**: Listens to server commands to move and click the client’s mouse.
-    - **Keyboard**: Receives keyboard inputs from the server.
-
-## Important Notes
-
-- **Network Requirements**: Ensure firewall permissions are configured for the specified ports.
-- **Security Considerations**: The current version does not include encryption, so use this application only within trusted networks.
-- **Error Handling**: Automatic reconnection attempts are implemented for clients that lose connection to the server.
-
 ## Future Improvements
 
-- **Encryption** for secure data transmission.
 - **Cross-Platform Support** for different OS environments.
 - **User Authentication** to restrict access.
 - **Video Compression** to improve streaming efficiency.
